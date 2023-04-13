@@ -1,64 +1,95 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width,minimum-scale=1">
-		<title>Login</title>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,minimum-scale=1" />
+        <title>Login</title>
         <!-- the form awesome library is used to add icons to our form -->
-		<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.1/css/all.css">
+        <link
+            rel="stylesheet"
+            href="https://use.fontawesome.com/releases/v5.7.1/css/all.css"
+        />
         <!-- include the stylesheet file -->
-        <link href="/style.css" rel="stylesheet" type="text/css">
-	</head>
-	<body>
-		<div class="login">
-			<h1>Login/Register</h1>
-			<form action="/auth" method="post">
-				<!-- name -->
-				<label for="name">
-					<i class="fas fa-user"></i>
-				</label>
-                <input type="text" name="name" placeholder="Name" id="name" required>
-                <!-- pw -->
-				<label for="password">
-					<i class="fas fa-lock"></i>
-				</label>
-				<input type="password" name="password" placeholder="Password" id="password" required>
-                <!-- mail -->
-				<label for="mail">
-					<i class="fas fa-envelope"></i>
-				</label>
-				<input type="text" name="mail" placeholder="Mail" id="mail">
-                <!-- mobile -->
-				<label for="mobile">
-					<i class="fas fa-phone"></i>
-				</label>
-				<input type="text" name="mobile" placeholder="Mobile" id="mobile">
-                
-                <input type="submit" name="submit" value="Login">
-                <input type="submit" name="submit" value="Register">
-			</form>
-            <hr>
-            <h2>Or login via 2FA:</h2>
-			<form action="/code" method="post">
+        <link href="/style.css" rel="stylesheet" type="text/css" />
+    </head>
+    <body>
+        <div class="login">
+            <h1>Login/Register</h1>
+            <form action="/auth" method="post">
                 <!-- name -->
                 <label for="name">
                     <i class="fas fa-user"></i>
                 </label>
-                <input type="text" name="name" placeholder="Name" id="name">
+                <input
+                    type="text"
+                    name="name"
+                    placeholder="Name"
+                    id="name"
+                    required
+                />
+                <!-- pw -->
+                <label for="password">
+                    <i class="fas fa-lock"></i>
+                </label>
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Password"
+                    id="password"
+                    required
+                />
+                <!-- mail -->
+                <label for="mail">
+                    <i class="fas fa-envelope"></i>
+                </label>
+                <input type="text" name="mail" placeholder="Mail" id="mail" />
+                <!-- mobile -->
+                <label for="mobile">
+                    <i class="fas fa-phone"></i>
+                </label>
+                <input
+                    type="text"
+                    name="mobile"
+                    placeholder="Mobile"
+                    id="mobile"
+                />
+
+                <input type="submit" name="submit" value="Login" />
+                <input type="submit" name="submit" value="Register" />
+            </form>
+            <hr />
+            <h2>Or login via 2FA:</h2>
+            <form action="/code" method="post">
+                <!-- name -->
+                <label for="name">
+                    <i class="fas fa-user"></i>
+                </label>
+                <input type="text" name="name" placeholder="Name" id="name" />
                 <p>or</p>
                 <!-- mobile -->
                 <label for="mobile">
                     <i class="fas fa-phone"></i>
                 </label>
-                <input type="text" name="mobile" placeholder="Mobile" id="mobile">
+                <input
+                    type="text"
+                    name="mobile"
+                    placeholder="Mobile"
+                    id="mobile"
+                />
                 <!-- pw -->
-				<label for="password">
-					<i class="fas fa-lock"></i>
-				</label>
-				<input type="password" name="password" placeholder="Password" id="password" required>
-                
-                <input type="submit" value="Login">
-			</form> 
-		</div>
-	</body>
+                <label for="password">
+                    <i class="fas fa-lock"></i>
+                </label>
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Password"
+                    id="password"
+                    required
+                />
+
+                <input type="submit" value="Login" />
+            </form>
+        </div>
+    </body>
 </html>
