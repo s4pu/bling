@@ -28,7 +28,7 @@ app.use(session({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'static'))); // todo: ssl?
+app.use(express.static(path.join(__dirname, 'static')));
 
 // http://localhost:3000/
 app.get('/', function(request, response) {
@@ -36,53 +36,186 @@ app.get('/', function(request, response) {
 	response.sendFile(path.join(__dirname + '/login.html'));
 });
 
-// http://localhost:3000/auth
-app.post('/auth', function(request, response) {
-	// Capture the input fields
-	let username = request.body.username;
-	let password = request.body.password;
-	// Ensure the input fields exists and are not empty
-	if (username && password) {
-		// Execute SQL query that'll select the account from the database based on the specified username and password
-		connection.query('SELECT * FROM accounts WHERE username = ? AND password = ?', [username, password], function(error, results, fields) {
-			// If there is an issue with the query, output the error
-			if (error) throw error;
-			// If the account exists
-			if (results.length > 0) {
-				// Authenticate the user
-				request.session.loggedin = true;
-				request.session.username = username;
-                client.messages
-                    .create({
-                        body: 'Hello from twileo-node',
-                        to: process.env.my_number, // Text this number
-                        from: process.env.twilio_number, // From a valid Twilio number
-                    })
-                    .then((message) => console.log(message.sid));
-				// Redirect to home page
-				response.redirect('/home');
-			} else {
-				response.send('Incorrect Username and/or Password!');
-			}			
-			response.end();
-		});
-	} else {
-		response.send('Please enter Username and Password!');
-		response.end();
-	}
+// http://localhost:3000/2fa
+app.get('/2fa', function(request, response) {
+	// Render 2fa template
+	response.sendFile(path.join(__dirname + '/2fa.html'));
 });
 
 // http://localhost:3000/home
 app.get('/home', function(request, response) {
 	// If the user is loggedin
 	if (request.session.loggedin) {
-		// Output username
-		response.send('Welcome back, ' + request.session.username + '!');
+        response.sendFile(path.join(__dirname + '/home.html'));
 	} else {
 		// Not logged in
 		response.send('Please login to view this page!');
+        response.end();
 	}
-	response.end();
+});
+
+// http://localhost:3000/update
+app.post('/update', function(request, response) {
+    const inputName = request.body.name;
+    const inputMail = request.body.mail;
+    const oldName = request.session.name;
+    const oldMail = request.session.mail;
+    let newName, newMail;
+
+    if (inputName) { newName = inputName } 
+    else { newName = oldName };
+    if (inputMail) { newMail = inputMail } 
+    else { newMail = oldMail };
+
+    const id = request.session.SQLid;
+    request.session.name = newName;
+    request.session.mail = newMail;
+    console.log(newName, newMail, id);
+    connection.query(
+        "UPDATE bling_accounts SET name = ?, mail = ? WHERE id = ?;", [newName, newMail, id], 
+        function(error, results, fields) {
+            if (error) throw error;
+            response.redirect('/home');
+        });
+});
+
+// http://localhost:3000/update-password
+app.post('/update-password', function(request, response) {
+	request.session.changePassword = true;
+    request.session.newPassword = request.body.password;
+    const code = '123456'
+    request.session.code = code // todo: randomize
+    client.messages
+        .create({
+            body: 'Here is your login code: ' + code,
+            to: process.env.my_number, // todo: mobile!
+            from: process.env.twilio_number, // From a valid Twilio number
+        })
+        .then((message) => console.log(message.sid));
+    // Render 2fa template
+	response.sendFile(path.join(__dirname + '/2fa.html'));
+});
+
+// http://localhost:3000/auth
+app.post('/auth', function(request, response) {
+	// Capture the input fields
+	const name = request.body.name;
+	const password = request.body.password;
+    const mail = request.body.mail;
+    const mobile = request.body.mobile;
+    const submitType = request.body.submit;
+
+    if (submitType === 'Register') { // Register
+        if (name && password && mail && mobile) {
+            connection.query(
+                "INSERT INTO bling_accounts (name, password, mail, mobile) VALUES (?, ?, ?, ?);", [name, password, mail, mobile], 
+                function(error, results, fields) {
+                    if (error) throw error;
+                    request.session.loggedin = true;
+                    request.session.name = name;
+                    console.log("REGISTER: ",results);
+                    request.session.SQLid = results[0].id; // todo: bekomme ich hier eine id?
+                    response.redirect('/home');
+                });
+        } else {
+            response.send('Please enter all fields to register!');
+            response.end();
+        }
+    } else { // Login
+        if (name && password) {
+            connection.query(
+                'SELECT * FROM bling_accounts WHERE name = ? AND password = ?', 
+                [name, password], 
+                function(error, results, fields) {
+                    if (error) throw error;
+                    if (results.length > 0) { // Account exists
+                        request.session.SQLid = results[0].id;
+                        request.session.loggedin = true;
+                        request.session.username = name;
+                        response.redirect('/home');
+                    } else {
+                        response.send('Incorrect Username and/or Password!');
+                        response.end();
+                    }			
+            });
+        } else { // incorrect name and password
+            response.send('Please enter a valid Name and Password!');
+            response.end();
+        }
+    }
+});
+
+// http://localhost:3000/auth-2fa
+app.post('/auth-2fa', function(request, response) {
+	const code = request.body.code;
+    if (code === request.session.code) { // code correct
+        if (request.session.changePassword) { // for password change
+            const newPassword = request.session.newPassword;
+            const id = request.session.SQLid;
+            request.session.password = newPassword;
+            connection.query(
+                "UPDATE bling_accounts SET password = ? WHERE id = ?;", [newPassword, id], 
+                function(error, results, fields) {
+                    if (error) throw error;
+                    response.redirect('/home');
+                });
+        } else { // for logging in
+            request.session.loggedin = true;
+            response.redirect('/home');
+        }
+    } else {
+        response.send('Wrong Code!');
+        response.end();
+    }
+});
+
+// http://localhost:3000/code
+app.post('/code', function(request, response) {
+	// Capture the input fields
+	let name = request.body.name;
+	let mobile = request.body.mobile;
+	const password = request.body.password;
+	// Ensure the input fields exists and are not empty
+	if ((mobile || name) && password) {
+        let queryString, inputs;
+        if (mobile) {
+            queryString = 'SELECT * FROM bling_accounts WHERE mobile = ? AND password = ?';
+            inputs = [mobile, password]
+        } else {
+            queryString = 'SELECT * FROM bling_accounts WHERE name = ? AND password = ?';
+            inputs = [name, password]
+        }
+		connection.query(
+            queryString, 
+            inputs, function(error, results, fields) {
+			if (error) throw error;
+			if (results.length > 0) {
+                let id = results[0].id;
+                name = results[0].name;
+                mobile = results[0].mobile;
+                request.session.SQLid = id;
+                request.session.name = name;
+                request.session.mobile = mobile;
+                
+                let code = '123456' // todo: random
+                request.session.code = code;
+                client.messages
+                    .create({
+                        body: 'Here is your login code: ' + code,
+                        to: process.env.my_number, // todo: mobile!
+                        from: process.env.twilio_number, // From a valid Twilio number
+                    })
+                    .then((message) => console.log(message.sid));
+                response.redirect('/2fa');
+			} else {
+				response.send('Incorrect Mobile/Mobile and Password combination!');
+			}			
+			response.end();
+		});
+	} else {
+		response.send('Please enter your Password and either Name or Mobile!');
+		response.end();
+	}
 });
 
 app.listen(3000);

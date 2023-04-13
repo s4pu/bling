@@ -11,19 +11,54 @@
 	</head>
 	<body>
 		<div class="login">
-			<h1>Login</h1>
+			<h1>Login/Register</h1>
 			<form action="/auth" method="post">
-				<label for="username">
-					<!-- font awesome icon -->
+				<!-- name -->
+				<label for="name">
 					<i class="fas fa-user"></i>
 				</label>
-				<input type="text" name="username" placeholder="Username" id="username" required>
+                <input type="text" name="name" placeholder="Name" id="name" required>
+                <!-- pw -->
 				<label for="password">
 					<i class="fas fa-lock"></i>
 				</label>
 				<input type="password" name="password" placeholder="Password" id="password" required>
-				<input type="submit" value="Login">
+                <!-- mail -->
+				<label for="mail">
+					<i class="fas fa-envelope"></i>
+				</label>
+				<input type="text" name="mail" placeholder="Mail" id="mail">
+                <!-- mobile -->
+				<label for="mobile">
+					<i class="fas fa-phone"></i>
+				</label>
+				<input type="text" name="mobile" placeholder="Mobile" id="mobile">
+                
+                <input type="submit" name="submit" value="Login">
+                <input type="submit" name="submit" value="Register">
 			</form>
+            <hr>
+            <h2>Or login via 2FA:</h2>
+			<form action="/code" method="post">
+                <!-- name -->
+                <label for="name">
+                    <i class="fas fa-user"></i>
+                </label>
+                <input type="text" name="name" placeholder="Name" id="name">
+                <p>or</p>
+                <!-- mobile -->
+                <label for="mobile">
+                    <i class="fas fa-phone"></i>
+                </label>
+                <input type="text" name="mobile" placeholder="Mobile" id="mobile">
+                <!-- pw -->
+				<label for="password">
+					<i class="fas fa-lock"></i>
+				</label>
+				<input type="password" name="password" placeholder="Password" id="password" required>
+                
+                <input type="submit" value="Login">
+			</form> 
 		</div>
 	</body>
 </html>
