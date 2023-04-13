@@ -125,11 +125,14 @@ app.post("/auth", function (request, response) {
                     // Account exists
                     request.session.SQLid = results[0].id;
                     request.session.loggedin = true;
-                    request.session.username = name;
+                    request.session.name = name;
+                    request.session.password = password;
+                    request.session.mail = results[0].mail;
+                    request.session.mobile = results[0].mobile;
                     response.redirect("/home");
                 }
                 else {
-                    response.send("Incorrect Username and/or Password!");
+                    response.send("Incorrect Name and/or Password!");
                     response.end();
                 }
             });
