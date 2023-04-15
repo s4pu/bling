@@ -5,7 +5,29 @@ const path = require("path");
 const dotenv = require("dotenv");
 const twilio = require("twilio");
 
+import { Request, Response } from "express";
+import { Session } from "express-session";
+import { MysqlError } from "mysql";
+
 dotenv.config();
+
+export interface BlingSession extends Session {
+    loggedin?: Boolean;
+    name?: string;
+    mail?: string;
+    mobile?: string;
+    password?: string;
+    changePassword?: Boolean;
+    newPassword?: string;
+    code?: string;
+    SQLid?: string;
+}
+
+export interface BlingRequest extends Request {
+    session: BlingSession;
+}
+
+export interface BlingResponse extends Response {}
 
 const connection = mysql.createConnection({
     host: "localhost",
@@ -18,7 +40,7 @@ const app = express();
 
 const accountSid = process.env.twilio_Sid;
 const authToken = process.env.twilio_authToken;
-const client = require("twilio")(accountSid, authToken);
+const client = twilio(accountSid, authToken);
 
 app.use(
     session({
@@ -32,17 +54,18 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "static")));
 
 // http://localhost:3000/
-app.get("/", function (request, response) {
+app.get("/", function (request: BlingRequest, response: BlingResponse) {
     response.sendFile(path.join(__dirname + "/login.html"));
+    request.session;
 });
 
 // http://localhost:3000/2fa
-app.get("/2fa", function (request, response) {
+app.get("/2fa", function (request: BlingRequest, response: BlingResponse) {
     response.sendFile(path.join(__dirname + "/2fa.html"));
 });
 
 // http://localhost:3000/home
-app.get("/home", function (request, response) {
+app.get("/home", function (request: BlingRequest, response: BlingResponse) {
     // If the user is loggedin
     if (request.session.loggedin) {
         response.sendFile(path.join(__dirname + "/home.html"));
@@ -54,7 +77,7 @@ app.get("/home", function (request, response) {
 });
 
 // http://localhost:3000/update
-app.post("/update", function (request, response) {
+app.post("/update", function (request: BlingRequest, response: BlingResponse) {
     const inputName = request.body.name;
     const inputMail = request.body.mail;
     const oldName = request.session.name;
@@ -78,7 +101,7 @@ app.post("/update", function (request, response) {
     connection.query(
         "UPDATE bling_accounts SET name = ?, mail = ? WHERE id = ?;",
         [newName, newMail, id],
-        function (error, results, fields) {
+        function (error: MysqlError | null, result: any) {
             if (error) throw error;
             response.redirect("/home");
         }
@@ -86,24 +109,28 @@ app.post("/update", function (request, response) {
 });
 
 // http://localhost:3000/update-password
-app.post("/update-password", function (request, response) {
-    request.session.changePassword = true;
-    request.session.newPassword = request.body.password;
-    const code = generateCode();
-    request.session.code = code;
-    client.messages
-        .create({
+app.post(
+    "/update-password",
+    function (request: BlingRequest, response: BlingResponse) {
+        request.session.changePassword = true;
+        request.session.newPassword = request.body.password;
+        const code = generateCode();
+        request.session.code = code;
+        if (!request.session.mobile) {
+            throw new Error("No mobile number in session object.");
+        }
+        client.messages.create({
             body: "Here is your login code: " + code,
             to: request.session.mobile,
             from: process.env.twilio_number,
-        })
-        .then((message) => console.log(message.sid));
-    // Render 2fa template
-    response.sendFile(path.join(__dirname + "/2fa.html"));
-});
+        });
+        // Render 2fa template
+        response.sendFile(path.join(__dirname + "/2fa.html"));
+    }
+);
 
 // http://localhost:3000/auth
-app.post("/auth", function (request, response) {
+app.post("/auth", function (request: BlingRequest, response: BlingResponse) {
     // Capture the input fields
     const name = request.body.name;
     const password = request.body.password;
@@ -117,7 +144,7 @@ app.post("/auth", function (request, response) {
             connection.query(
                 "INSERT INTO bling_accounts (name, password, mail, mobile) VALUES (?, ?, ?, ?);",
                 [name, password, mail, mobile],
-                function (error, result, fields) {
+                function (error: MysqlError | null, result: any) {
                     if (error) throw error;
                     request.session.loggedin = true;
                     request.session.name = name;
@@ -138,7 +165,7 @@ app.post("/auth", function (request, response) {
             connection.query(
                 "SELECT * FROM bling_accounts WHERE name = ? AND password = ?",
                 [name, password],
-                function (error, results, fields) {
+                function (error: MysqlError | null, results: any) {
                     if (error) throw error;
                     if (results.length > 0) {
                         // Account exists
@@ -164,36 +191,39 @@ app.post("/auth", function (request, response) {
 });
 
 // http://localhost:3000/auth-2fa
-app.post("/auth-2fa", function (request, response) {
-    const code = request.body.code;
-    if (code === request.session.code) {
-        // code correct
-        if (request.session.changePassword) {
-            // for password change
-            const newPassword = request.session.newPassword;
-            const id = request.session.SQLid;
-            request.session.password = newPassword;
-            connection.query(
-                "UPDATE bling_accounts SET password = ? WHERE id = ?;",
-                [newPassword, id],
-                function (error, results, fields) {
-                    if (error) throw error;
-                    response.redirect("/home");
-                }
-            );
+app.post(
+    "/auth-2fa",
+    function (request: BlingRequest, response: BlingResponse) {
+        const code = request.body.code;
+        if (code === request.session.code) {
+            // code correct
+            if (request.session.changePassword) {
+                // for password change
+                const newPassword = request.session.newPassword;
+                const id = request.session.SQLid;
+                request.session.password = newPassword;
+                connection.query(
+                    "UPDATE bling_accounts SET password = ? WHERE id = ?;",
+                    [newPassword, id],
+                    function (error: MysqlError | null, results: any) {
+                        if (error) throw error;
+                        response.redirect("/home");
+                    }
+                );
+            } else {
+                // for logging in
+                request.session.loggedin = true;
+                response.redirect("/home");
+            }
         } else {
-            // for logging in
-            request.session.loggedin = true;
-            response.redirect("/home");
+            response.send("Wrong Code!");
+            response.end();
         }
-    } else {
-        response.send("Wrong Code!");
-        response.end();
     }
-});
+);
 
 // http://localhost:3000/code
-app.post("/code", function (request, response) {
+app.post("/code", function (request: BlingRequest, response: BlingResponse) {
     let name = request.body.name;
     let mobile = request.body.mobile;
     const password = request.body.password;
@@ -212,7 +242,7 @@ app.post("/code", function (request, response) {
         connection.query(
             queryString,
             inputs,
-            function (error, results, fields) {
+            function (error: MysqlError | null, results: any) {
                 if (error) throw error;
                 if (results.length > 0) {
                     let id = results[0].id;
@@ -224,13 +254,11 @@ app.post("/code", function (request, response) {
 
                     const code = generateCode();
                     request.session.code = code;
-                    client.messages
-                        .create({
-                            body: "Here is your login code: " + code,
-                            to: mobile, // process.env.my_number,
-                            from: process.env.twilio_number,
-                        })
-                        .then((message) => console.log(message.sid));
+                    client.messages.create({
+                        body: "Here is your login code: " + code,
+                        to: mobile, // process.env.my_number,
+                        from: process.env.twilio_number,
+                    });
                     response.redirect("/2fa");
                 } else {
                     response.send(
